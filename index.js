@@ -20,7 +20,7 @@ function mainMenu() {
             type: "list",
             name: "mainMenu",
             message: "What would you like to do?",
-            choices: ["View all departments", "View all roles", "View all employees", "Add a department", "Add a role", "Add an employee", "Update an employee role"],
+            choices: ["View all departments", "View all roles", "View all employees", "Add a department", "Add a role", "Add an employee", "Update an employee role or manager"],
           }
         ])
         .then((answers) => {
@@ -42,8 +42,8 @@ function mainMenu() {
           if (answers.mainMenu === "Add an employee") {
             addEmployee();
           }
-          if (answers.mainMenu === "Update an employee role") {
-            updateRole();
+          if (answers.mainMenu === "Update an employee role or manager") {
+            updateEmployee();
           }
         });
 }
@@ -127,8 +127,8 @@ function addRole() {
     con.query(
         `SELECT name FROM department`,
        (err, results) => {
-    inquirer
-    .prompt([
+    
+    var questions = [
         {
             type: 'input',
             name: 'roleTitle',
@@ -153,24 +153,28 @@ function addRole() {
             message: 'Enter department of new role',
             choices: results
         }
-    ])
+    ]
+    inquirer.prompt(questions)
     .then((answers) => {
         con.query(`SELECT id FROM department WHERE name = '${answers.roleDepartment}'`, (err, results) => {
             con.query(`
             INSERT INTO role (title, salary, department_id)
             VALUES ('${answers.roleTitle}', '${answers.roleSalary}', '${results[0].id}')`);
+            console.log(`Created new role '${answers.roleTitle}' in ${answers.roleDepartment}`)
     });
+
+    setTimeout(() => {
+        mainMenu();
+    }, 1000);
         });
         
 });
 
-
-mainMenu();
 }
 
 function addEmployee() {
 
-    let questions = [
+    var questions = [
         {
             type: 'input',
             name: 'firstName',
@@ -192,37 +196,138 @@ function addEmployee() {
     ]
     
     con.query(`SELECT title FROM role`, (err, results) => {
+        const arr = results.map(object => object.title);
         questions.push({
             type: 'list',
             name: 'role',
             message: "Select employee's role",
-            choices: results
+            choices: arr
         });
-        return questions;
     });
+
     con.query(`SELECT CONCAT(last_name, ", ", first_name) AS manager FROM employee WHERE manager_id IS NOT NULL`, (err, results) => {
+        const arr = results.map(object => object.manager);
         questions.push({ 
             type: 'list',
             name: 'manager',
             message: "Select employee's manager",
-            choices: results
+            choices: arr
         });
-        console.log(questions)
-        return questions;
     });
-    console.log('final:::', questions)
-    inquirer.prompt(questions)
-    .then((answers) => {
-        con.query(`SELECT id FROM department WHERE name = '${answers.roleDepartment}'`, (err, results) => {
-            con.query(`
-            INSERT INTO employee (first_name, last_name, role_id, manager_id)
-            VALUES ('${answers.firstName}', '${answers.lastName}', '')`);
-    });
+
+    setTimeout(() => {
+        inquirer.prompt(questions).then((answers) => {
+            const managerFirst = answers.manager.split(',')[1].trim();
+            const managerLast = answers.manager.split(',')[0].trim();
+            con.query(`SELECT id FROM employee WHERE first_name = '${managerFirst}' AND last_name = '${managerLast}'`, (err, result) => {
+            const managerID = result[0].id;
+            con.query(`SELECT id FROM role WHERE title = '${answers.role}'`, (err, results) => {
+                con.query(`
+                INSERT INTO employee (first_name, last_name, role_id, manager_id)
+                VALUES ('${answers.firstName}', '${answers.lastName}', '${results[0].id}', '${managerID}' )`);
+                console.log(`Successfully added new employee ${answers.firstName + ' ' + answers.lastName}`)
+            })
+        setTimeout(() => {
+        mainMenu();
+        }, 1000);
         });
+            });
+            
+    }, 1000);
         
+}
 
+function updateEmployee() {
+    inquirer.prompt(
+        {
+            type: 'list',
+            name: 'userChoice',
+            message: 'What would you like to do?',
+            choices: ['Update employee role', 'Update employee manager']
+        }
+    )
+    .then((answers) => {
+        if (answers.userChoice === 'Update employee role') {
+            updateRole();
+        } else updateManager();
+    })
+}
 
+function updateRole() {
 
+    const questions = [];
+    con.query(`SELECT CONCAT(last_name, ", ", first_name) AS e FROM employee`, (err, results) => {
+        const arr = results.map(object => object.e);
+        questions.push({
+            type:"list",
+            name:"employee",
+            message:"Choose employee whose role you'd like to update",
+            choices: arr
+        })
+    })
+
+    con.query(`SELECT title FROM role`, (err, results) => {
+        const arr = results.map(object => object.title)
+        questions.push({
+            type:"list",
+            name:"role",
+            message:"Choose new role for chosen employee",
+            choices: arr
+
+        })
+    })
+
+        inquirer.prompt(questions)
+        .then((answers) => {
+            const employeeFirst = answers.employee.split(',')[1].trim();
+            const employeeLast = answers.employee.split(',')[0].trim();
+            con.query(`SELECT id FROM role WHERE title = '${answers.role}'`, (err, results) => {
+                const roleID = results[0].id;
+            con.query(`UPDATE employee SET role_id = ${roleID} WHERE first_name = '${employeeFirst}' AND last_name = '${employeeLast}'`)
+            console.log("Successfully updated ",answers.employee,"'s role to ",answers.role)
+            })
+        })
 
 }
+
+function updateManager() {
+    const questions = [];
+    
+    con.query(`SELECT CONCAT(last_name, ", ", first_name) as e FROM employee`, (err, results) => {
+        const arr = results.map(object => object.e)
+        questions.push({
+            type:"list",
+            name:"employee",
+            message:"Choose employee whose manager you'd like to update",
+            choices: arr
+        })
+    })
+
+    con.query(`SELECT CONCAT(last_name, ", ", first_name) AS m FROM employee WHERE manager_id = NULL`, (err, results) => {
+        const arr = results.map(object => object.m);
+        questions.push({
+            type:"list",
+            name:"manager",
+            message:"Choose new manager for employee",
+            choices: arr
+        })
+    })
+    
+    setTimeout(() => {
+     inquirer.prompt(questions)
+        .then((answers) => {
+            const employeeFirst = answers.employee.split(',')[1].trim();
+            const employeeLast = answers.employee.split(',')[0].trim();
+            const managerFirst = answers.manager.split(',')[1].trim();
+            const managerLast = answers.manager.split(',')[0].trim();
+            con.query(`SELECT id FROM employee WHERE first_name = '${managerFirst}' AND last_name = '${managerLast}'`, (err, result) => {
+                const managerID = result[0].id;
+                con.query(`UPDATE employee SET manager_id = '${managerID}' WHERE first_name = '${employeeFirst}' AND last_name = '${employeeLast}'`)
+                console.log("Successfully updated ",answers.employee,"'s manager to ",answers.manager)
+            })
+            
+        })
+    }, 1000);
+}
+
 mainMenu();
