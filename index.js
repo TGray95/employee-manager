@@ -20,7 +20,7 @@ function mainMenu() {
             type: "list",
             name: "mainMenu",
             message: "What would you like to do?",
-            choices: ["View all departments", "View all roles", "View all employees", "Add a department", "Add a role", "Add an employee", "Update an employee role or manager"],
+            choices: ["View all departments", "View all roles", "View all employees", "Add a department", "Add a role", "Add an employee", "Update an employee role or manager", "Exit application"],
           }
         ])
         .then((answers) => {
@@ -44,6 +44,9 @@ function mainMenu() {
           }
           if (answers.mainMenu === "Update an employee role or manager") {
             updateEmployee();
+          }
+          if (answers.mainMenu === "Exit application") {
+            process.exit();
           }
         });
 }
@@ -205,7 +208,7 @@ function addEmployee() {
         });
     });
 
-    con.query(`SELECT CONCAT(last_name, ", ", first_name) AS manager FROM employee WHERE manager_id IS NOT NULL`, (err, results) => {
+    con.query(`SELECT CONCAT(last_name, ", ", first_name) AS manager FROM employee WHERE manager_id IS NULL`, (err, results) => {
         const arr = results.map(object => object.manager);
         questions.push({ 
             type: 'list',
@@ -276,7 +279,7 @@ function updateRole() {
 
         })
     })
-
+    setTimeout(() => {
         inquirer.prompt(questions)
         .then((answers) => {
             const employeeFirst = answers.employee.split(',')[1].trim();
@@ -286,14 +289,17 @@ function updateRole() {
             con.query(`UPDATE employee SET role_id = ${roleID} WHERE first_name = '${employeeFirst}' AND last_name = '${employeeLast}'`)
             console.log("Successfully updated ",answers.employee,"'s role to ",answers.role)
             })
+            setTimeout(() => {
+                mainMenu();
+                }, 1000);
         })
-
+    }, 1000);
 }
 
 function updateManager() {
     const questions = [];
     
-    con.query(`SELECT CONCAT(last_name, ", ", first_name) as e FROM employee`, (err, results) => {
+    con.query(`SELECT CONCAT(last_name, ", ", first_name) AS e FROM employee`, (err, results) => {
         const arr = results.map(object => object.e)
         questions.push({
             type:"list",
@@ -303,7 +309,7 @@ function updateManager() {
         })
     })
 
-    con.query(`SELECT CONCAT(last_name, ", ", first_name) AS m FROM employee WHERE manager_id = NULL`, (err, results) => {
+    con.query(`SELECT CONCAT(last_name, ", ", first_name) AS m FROM employee WHERE manager_id IS NULL`, (err, results) => {
         const arr = results.map(object => object.m);
         questions.push({
             type:"list",
@@ -325,7 +331,9 @@ function updateManager() {
                 con.query(`UPDATE employee SET manager_id = '${managerID}' WHERE first_name = '${employeeFirst}' AND last_name = '${employeeLast}'`)
                 console.log("Successfully updated ",answers.employee,"'s manager to ",answers.manager)
             })
-            
+            setTimeout(() => {
+                mainMenu();
+                }, 1000);
         })
     }, 1000);
 }
