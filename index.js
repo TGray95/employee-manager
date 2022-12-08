@@ -119,10 +119,11 @@ function addDepartment() {
         con.query(
             `INSERT INTO department (name)
             VALUES ('${answers.departmentName}')`);
+            setTimeout(() => {
+                mainMenu();
+                }, 1000);
     })
-    setTimeout(() => {
-        mainMenu();
-    }, 1000);
+    
 }
 
 function addRole() {
@@ -259,7 +260,7 @@ function updateEmployee() {
 function updateRole() {
 
     const questions = [];
-    con.query(`SELECT CONCAT(last_name, ", ", first_name) AS e FROM employee`, (err, results) => {
+    con.query(`SELECT CONCAT(last_name,", ", first_name) AS e FROM employee`, (err, results) => {
         const arr = results.map(object => object.e);
         questions.push({
             type:"list",
@@ -299,7 +300,7 @@ function updateRole() {
 function updateManager() {
     const questions = [];
     
-    con.query(`SELECT CONCAT(last_name, ", ", first_name) AS e FROM employee`, (err, results) => {
+    con.query(`SELECT CONCAT(last_name,", ", first_name) AS e FROM employee`, (err, results) => {
         const arr = results.map(object => object.e)
         questions.push({
             type:"list",
@@ -309,7 +310,7 @@ function updateManager() {
         })
     })
 
-    con.query(`SELECT CONCAT(last_name, ", ", first_name) AS m FROM employee WHERE manager_id IS NULL`, (err, results) => {
+    con.query(`SELECT CONCAT(last_name,", ", first_name) AS m FROM employee WHERE manager_id IS NULL`, (err, results) => {
         const arr = results.map(object => object.m);
         questions.push({
             type:"list",
